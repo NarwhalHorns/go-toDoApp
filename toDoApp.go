@@ -1,9 +1,13 @@
 package main
 
-func main() {
-	// start storage
-	// start CLI
-	// start web server
+import (
+	"toDoApp/cli"
+)
 
-	// stop when any of the channels close
+func main() {
+	mainChan := make(chan bool)
+
+	go cli.StartCLI(mainChan)
+
+	<-mainChan
 }
