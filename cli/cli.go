@@ -1,26 +1,20 @@
 package cli
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 	"toDoApp/store"
 
 	"github.com/google/uuid"
 )
 
 func scanInputLine(prompt string) string {
+	reader := bufio.NewReader(os.Stdin)
 	fmt.Print(prompt)
-	var input string
-	var char rune
-	var err error
-	for err = nil; err == nil; {
-		_, err = fmt.Scanf("%c", &char)
-		if char == '\n' {
-			break
-		}
-		input += string(char)
-	}
-	return input
+	input, _ := reader.ReadString('\n')
+	return strings.Split(input, "\n")[0]
 }
 
 func displayHelp() {
@@ -66,7 +60,11 @@ func deletePrompt() {
 }
 
 func listItems() {
-	items := store.GetAllItems()
+	items, err := store.GetAllItems()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	allItemsString := store.ToDoListToString(items)
 	fmt.Println(allItemsString)
 }
@@ -97,29 +95,33 @@ func editPrompt() {
 // 	fmt.Println(item)
 // }
 
+func commandSwitch(input string, killChan chan os.Signal, loop *bool) {
+	switch input {
+	case "add":
+		addPrompt()
+	case "delete":
+		deletePrompt()
+	case "edit":
+		editPrompt()
+	case "search":
+		// searchPrompt()
+	case "list":
+		listItems()
+	case "exit":
+		exitCLI(killChan)
+		*loop = false
+	default:
+		displayHelp()
+	}
+}
+
 func Start(killChan chan os.Signal) {
 	fmt.Println("------- ToDoApp --------")
 	go func() {
 		var loop = true
 		for loop {
 			input := scanInputLine("Enter command: ")
-			switch input {
-			case "add":
-				addPrompt()
-			case "delete":
-				deletePrompt()
-			case "edit":
-				editPrompt()
-			case "search":
-				// searchPrompt()
-			case "list":
-				listItems()
-			case "exit":
-				exitCLI(killChan)
-				loop = false
-			default:
-				displayHelp()
-			}
+			commandSwitch(input, killChan, &loop)
 		}
 	}()
 }

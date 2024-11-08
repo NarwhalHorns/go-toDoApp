@@ -109,7 +109,7 @@ type input struct {
 	operation operation
 	title     string
 	priority  Priority
-	response  interface{}
+	response  chan any
 }
 
 var myToDoList = createtoDoList()
@@ -130,7 +130,7 @@ func Start() {
 			case toggleComplete:
 				myToDoList[input.id].ToggleComplete()
 			case listItems:
-				myToDoList.GetAllItems()
+				input.response <- myToDoList.GetAllItems()
 			case search:
 				// myToDoList.Search()
 			}
@@ -162,7 +162,7 @@ func DeleteItem(id uuid.UUID) bool {
 	var input = input{
 		operation: deleteItem,
 		id:        id,
-		response:  make(chan bool),
+		response:  res,
 	}
 	inputChan <- input
 	return <-res
@@ -174,7 +174,7 @@ func EditPriority(id uuid.UUID, priority Priority) bool {
 		operation: updatePriority,
 		priority:  priority,
 		id:        id,
-		response:  make(chan bool),
+		response:  res,
 	}
 	inputChan <- input
 	return <-res
@@ -186,7 +186,7 @@ func EditTitle(id uuid.UUID, title string) bool {
 		operation: updateTitle,
 		id:        id,
 		title:     title,
-		response:  make(chan bool),
+		response:  res,
 	}
 	inputChan <- input
 	return <-res
@@ -197,7 +197,7 @@ func ToggleComplete(id uuid.UUID) bool {
 	var input = input{
 		operation: toggleComplete,
 		id:        id,
-		response:  make(chan bool),
+		response:  res,
 	}
 	inputChan <- input
 	return <-res
