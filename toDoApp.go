@@ -1,13 +1,18 @@
 package main
 
 import (
+	"os"
+	"os/signal"
 	"toDoApp/cli"
+	"toDoApp/store"
 )
 
 func main() {
-	mainChan := make(chan bool)
+	killChan := make(chan os.Signal, 1)
+	signal.Notify(killChan, os.Interrupt)
 
-	go cli.StartCLI(mainChan)
+	store.Start()
+	cli.Start(killChan)
 
-	<-mainChan
+	<-killChan
 }

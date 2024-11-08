@@ -27,12 +27,13 @@ type toDoItem struct {
 	complete complete
 }
 
-func createToDoItem(t string, p Priority) toDoItem {
-	return toDoItem{
+func createToDoItem(t string, p Priority) *toDoItem {
+	itemPtr := &toDoItem{
 		title:    t,
 		priority: p,
 		complete: false,
 	}
+	return itemPtr
 }
 
 func (i *toDoItem) UpdateTitle(t string) {
@@ -47,15 +48,16 @@ func (i *toDoItem) ToggleComplete() {
 	i.complete = !i.complete
 }
 
-func (i *toDoItem) String() string {
+func ToDoItemToString(id uuid.UUID, i toDoItem) string {
 	var fullString string
-	fullString = "\ttitle: " + i.title + "\n"
+	fullString = "id: " + id.String() + "\n"
+	fullString += "\ttitle: " + i.title + "\n"
 	fullString += "\tpriority: " + string(i.priority) + "\n"
 	fullString += "\tcomplete: " + i.complete.String() + "\n"
 	return fullString
 }
 
-type toDoList map[uuid.UUID]toDoItem
+type toDoList map[uuid.UUID]*toDoItem
 
 func createtoDoList() toDoList {
 	return make(toDoList)
@@ -65,18 +67,138 @@ func (l toDoList) AddItem(t string, p Priority) {
 	l[uuid.New()] = createToDoItem(t, p)
 }
 
-func (l toDoList) RemoveItem(id uuid.UUID) {
-	delete(l, id)
-}
-
-func (l toDoList) GetAllItems(res chan string) {
-	var allItemsString string
-	for id, item := range l {
-		allItemsString += "id: " + id.String() + "\n"
-		allItemsString += item.String()
+func (l toDoList) RemoveItem(id uuid.UUID) bool {
+	_, ok := l[id]
+	if !ok {
+		return false
 	}
-
-	res <- allItemsString
+	delete(l, id)
+	return true
 }
 
-var ToDoList = createtoDoList()
+func (l toDoList) GetAllItems() toDoList {
+	return l
+}
+
+func ToDoListToString(l toDoList) string {
+	res := make(chan string)
+	go func() {
+		var fullString string
+		for id, item := range l {
+			fullString += ToDoItemToString(id, *item)
+		}
+		res <- fullString
+	}()
+	return <-res
+}
+
+type operation int
+
+const (
+	addItem operation = iota
+	deleteItem
+	updatePriority
+	updateTitle
+	toggleComplete
+	listItems
+	search
+)
+
+type input struct {
+	id        uuid.UUID
+	operation operation
+	title     string
+	priority  Priority
+	response  interface{}
+}
+
+var myToDoList = createtoDoList()
+var inputChan = make(chan input)
+
+func Start() {
+	go func() {
+		for input := range inputChan {
+			switch input.operation {
+			case addItem:
+				myToDoList.AddItem(input.title, input.priority)
+			case deleteItem:
+				myToDoList.RemoveItem(input.id)
+			case updatePriority:
+				myToDoList[input.id].UpdatePriority(input.priority)
+			case updateTitle:
+				myToDoList[input.id].UpdateTitle(input.title)
+			case toggleComplete:
+				myToDoList[input.id].ToggleComplete()
+			case listItems:
+				myToDoList.GetAllItems()
+			case search:
+				// myToDoList.Search()
+			}
+		}
+	}()
+}
+
+func AddItem(title string, priority Priority) {
+	var input = input{
+		operation: addItem,
+		title:     title,
+		priority:  priority,
+	}
+	inputChan <- input
+}
+
+func GetAllItems() toDoList {
+	res := make(chan toDoList)
+	var input = input{
+		operation: listItems,
+		response:  res,
+	}
+	inputChan <- input
+	return <-res
+}
+
+func DeleteItem(id uuid.UUID) bool {
+	res := make(chan bool)
+	var input = input{
+		operation: deleteItem,
+		id:        id,
+		response:  make(chan bool),
+	}
+	inputChan <- input
+	return <-res
+}
+
+func EditPriority(id uuid.UUID, priority Priority) bool {
+	res := make(chan bool)
+	var input = input{
+		operation: updatePriority,
+		priority:  priority,
+		id:        id,
+		response:  make(chan bool),
+	}
+	inputChan <- input
+	return <-res
+}
+
+func EditTitle(id uuid.UUID, title string) bool {
+	res := make(chan bool)
+	var input = input{
+		operation: updateTitle,
+		id:        id,
+		title:     title,
+		response:  make(chan bool),
+	}
+	inputChan <- input
+	return <-res
+}
+
+func ToggleComplete(id uuid.UUID) bool {
+	res := make(chan bool)
+	var input = input{
+		operation: toggleComplete,
+		id:        id,
+		response:  make(chan bool),
+	}
+	inputChan <- input
+	return <-res
+}
