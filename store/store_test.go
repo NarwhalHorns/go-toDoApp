@@ -8,6 +8,18 @@ import (
 	"github.com/google/uuid"
 )
 
+func BenchmarkStore(b *testing.B) {
+	Start()
+	for i := 0; i < b.N; i++ {
+		go AddItem("banana ", "Medium")
+		go EditPriority(uuid.New(), "High")
+		go EditTitle(uuid.New(), "ubunga")
+		go ToggleComplete(uuid.New())
+		go GetAllItems()
+		go DeleteItem(uuid.New())
+	}
+}
+
 func TestRemoveItem(t *testing.T) {
 	var tests = []struct {
 		name string

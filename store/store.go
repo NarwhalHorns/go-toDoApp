@@ -135,6 +135,7 @@ func Start() {
 			switch input.operation {
 			case addItem:
 				myToDoList.AddItem(input.title, input.priority)
+				input.response <- response{}
 			case deleteItem:
 				input.response <- myToDoList.RemoveItem(input.id)
 			case updatePriority:
