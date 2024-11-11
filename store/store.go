@@ -1,6 +1,8 @@
 package store
 
 import (
+	"errors"
+
 	"github.com/google/uuid"
 )
 
@@ -67,29 +69,35 @@ func (l toDoList) AddItem(t string, p Priority) {
 	l[uuid.New()] = createToDoItem(t, p)
 }
 
-func (l toDoList) RemoveItem(id uuid.UUID) bool {
+var ErrNoItem = errors.New("no item found")
+
+func (l toDoList) RemoveItem(id uuid.UUID) response {
 	_, ok := l[id]
 	if !ok {
-		return false
+		return response{
+			err: ErrNoItem,
+		}
 	}
 	delete(l, id)
-	return true
+	return response{}
 }
 
-func (l toDoList) GetAllItems() toDoList {
-	return l
+func (l toDoList) GetAllItems() response {
+	return response{
+		list: l,
+	}
+}
+
+func (l toDoList) DoesItemExist(id uuid.UUID) bool {
+	return l[id] != nil
 }
 
 func ToDoListToString(l toDoList) string {
-	res := make(chan string)
-	go func() {
-		var fullString string
-		for id, item := range l {
-			fullString += ToDoItemToString(id, *item)
-		}
-		res <- fullString
-	}()
-	return <-res
+	var fullString string
+	for id, item := range l {
+		fullString += ToDoItemToString(id, *item)
+	}
+	return fullString
 }
 
 type operation int
@@ -104,12 +112,18 @@ const (
 	search
 )
 
+type response struct {
+	list toDoList
+	item toDoItem
+	err  error
+}
+
 type input struct {
 	id        uuid.UUID
 	operation operation
 	title     string
 	priority  Priority
-	response  chan any
+	response  chan response
 }
 
 var myToDoList = createtoDoList()
@@ -122,13 +136,34 @@ func Start() {
 			case addItem:
 				myToDoList.AddItem(input.title, input.priority)
 			case deleteItem:
-				myToDoList.RemoveItem(input.id)
+				input.response <- myToDoList.RemoveItem(input.id)
 			case updatePriority:
+				if !myToDoList.DoesItemExist(input.id) {
+					input.response <- response{
+						err: errors.New("item does not exist to update"),
+					}
+					continue
+				}
 				myToDoList[input.id].UpdatePriority(input.priority)
+				input.response <- response{}
 			case updateTitle:
+				if !myToDoList.DoesItemExist(input.id) {
+					input.response <- response{
+						err: errors.New("item does not exist to update"),
+					}
+					continue
+				}
 				myToDoList[input.id].UpdateTitle(input.title)
+				input.response <- response{}
 			case toggleComplete:
+				if !myToDoList.DoesItemExist(input.id) {
+					input.response <- response{
+						err: errors.New("item does not exist to update"),
+					}
+					continue
+				}
 				myToDoList[input.id].ToggleComplete()
+				input.response <- response{}
 			case listItems:
 				input.response <- myToDoList.GetAllItems()
 			case search:
@@ -148,28 +183,33 @@ func AddItem(title string, priority Priority) {
 }
 
 func GetAllItems() toDoList {
-	res := make(chan toDoList)
+	res := make(chan response)
 	var input = input{
 		operation: listItems,
 		response:  res,
 	}
 	inputChan <- input
-	return <-res
+	response := <-res
+	return response.list
 }
 
-func DeleteItem(id uuid.UUID) bool {
-	res := make(chan bool)
+func DeleteItem(id uuid.UUID) error {
+	res := make(chan response)
 	var input = input{
 		operation: deleteItem,
 		id:        id,
 		response:  res,
 	}
 	inputChan <- input
-	return <-res
+	response := <-res
+	if response.err != nil {
+		return response.err
+	}
+	return nil
 }
 
-func EditPriority(id uuid.UUID, priority Priority) bool {
-	res := make(chan bool)
+func EditPriority(id uuid.UUID, priority Priority) error {
+	res := make(chan response)
 	var input = input{
 		operation: updatePriority,
 		priority:  priority,
@@ -177,11 +217,15 @@ func EditPriority(id uuid.UUID, priority Priority) bool {
 		response:  res,
 	}
 	inputChan <- input
-	return <-res
+	response := <-res
+	if response.err != nil {
+		return response.err
+	}
+	return nil
 }
 
-func EditTitle(id uuid.UUID, title string) bool {
-	res := make(chan bool)
+func EditTitle(id uuid.UUID, title string) error {
+	res := make(chan response)
 	var input = input{
 		operation: updateTitle,
 		id:        id,
@@ -189,16 +233,24 @@ func EditTitle(id uuid.UUID, title string) bool {
 		response:  res,
 	}
 	inputChan <- input
-	return <-res
+	response := <-res
+	if response.err != nil {
+		return response.err
+	}
+	return nil
 }
 
-func ToggleComplete(id uuid.UUID) bool {
-	res := make(chan bool)
+func ToggleComplete(id uuid.UUID) error {
+	res := make(chan response)
 	var input = input{
 		operation: toggleComplete,
 		id:        id,
 		response:  res,
 	}
 	inputChan <- input
-	return <-res
+	response := <-res
+	if response.err != nil {
+		return response.err
+	}
+	return nil
 }

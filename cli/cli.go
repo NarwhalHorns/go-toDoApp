@@ -51,20 +51,16 @@ func deletePrompt() {
 		fmt.Println(err)
 		return
 	}
-	deleted := store.DeleteItem(id)
-	if deleted {
+	err = store.DeleteItem(id)
+	if err != nil {
 		fmt.Println("Item deleted")
 	} else {
-		fmt.Println("Item not found")
+		fmt.Println(err)
 	}
 }
 
 func listItems() {
-	items, err := store.GetAllItems()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
+	items := store.GetAllItems()
 	allItemsString := store.ToDoListToString(items)
 	fmt.Println(allItemsString)
 }
@@ -78,13 +74,22 @@ func editPrompt() {
 	input := scanInputLine("Enter 't' to edit title, 'p' to edit priority or 'c' to toggle the compelte state.")
 	switch input {
 	case "c":
-		store.ToggleComplete(id)
+		err = store.ToggleComplete(id)
+		if err != nil {
+			fmt.Println(err)
+		}
 	case "t":
 		t := inputTitle()
-		store.EditTitle(id, t)
+		err = store.EditTitle(id, t)
+		if err != nil {
+			fmt.Println(err)
+		}
 	case "p":
 		p := scanInputLine("Enter priority: ")
-		store.EditPriority(id, store.Priority(p))
+		err = store.EditPriority(id, store.Priority(p))
+		if err != nil {
+			fmt.Println(err)
+		}
 	}
 	fmt.Println("Item edited")
 }
