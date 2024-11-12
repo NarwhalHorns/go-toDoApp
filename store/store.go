@@ -61,6 +61,10 @@ func ToDoItemToString(id uuid.UUID, i toDoItem) string {
 	return fullString
 }
 
+func (i toDoItem) GetValues() (string, string, bool) {
+	return i.title, string(i.priority), bool(i.complete)
+}
+
 type toDoList map[uuid.UUID]*toDoItem
 
 func createtoDoList() toDoList {

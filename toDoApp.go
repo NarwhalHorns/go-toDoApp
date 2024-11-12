@@ -5,6 +5,7 @@ import (
 	"os/signal"
 	"toDoApp/cli"
 	"toDoApp/store"
+	"toDoApp/webAPI"
 )
 
 func main() {
@@ -13,6 +14,7 @@ func main() {
 
 	store := store.CreateAndStartStore(nil)
 	cli.Start(killChan, &store)
+	webAPI.Start(&store)
 
 	<-killChan
 }
