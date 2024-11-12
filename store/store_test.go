@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,36 +8,57 @@ import (
 )
 
 func BenchmarkStore(b *testing.B) {
-	Start()
+	store := CreateAndStartStore(nil)
 	for i := 0; i < b.N; i++ {
-		go AddItem("banana ", "Medium")
-		go EditPriority(uuid.New(), "High")
-		go EditTitle(uuid.New(), "ubunga")
-		go ToggleComplete(uuid.New())
-		go GetAllItems()
-		go DeleteItem(uuid.New())
+		AddItem(&store, "banana ", "Medium")
+		EditPriority(&store, uuid.New(), "High")
+		EditTitle(&store, uuid.New(), "ubunga")
+		ToggleComplete(&store, uuid.New())
+		GetAllItems(&store)
+		DeleteItem(&store, uuid.New())
 	}
 }
 
-func TestRemoveItem(t *testing.T) {
+func TestDeleteItem(t *testing.T) {
 	var tests = []struct {
 		name string
 		list toDoList
 		id   uuid.UUID
-		want response
+		want error
 	}{
-		{name: "happy path", list: createToDoListWithItems(), id: knownID, want: response{}},
-		{name: "empty list", list: make(toDoList), id: knownID, want: response{err: ErrNoItem}},
-		{name: "item not found", list: createToDoListWithItems(), id: uuid.New(), want: response{err: ErrNoItem}},
+		{name: "happy path", list: createToDoListWithItems(), id: knownID, want: nil},
+		{name: "empty list", list: createtoDoList(), id: knownID, want: ErrNoItem},
+		{name: "item not in list", list: createToDoListWithItems(), id: uuid.New(), want: ErrNoItem},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.list.RemoveItem(tt.id)
-			if !compareResonses(got, tt.want) {
+			store := CreateAndStartStore(tt.list)
+			got := DeleteItem(&store, tt.id)
+			if tt.want != got {
 				t.Errorf("got %v, want %v", got, tt.want)
 			}
-			if tt.list[tt.id] != nil {
-				t.Errorf("item still exists")
+			_, ok := store.toDoList[tt.id]
+			if ok {
+				t.Errorf("item not deleted")
+			}
+		})
+	}
+}
+
+func TestCreateStorePopulatesList(t *testing.T) {
+	var tests = []struct {
+		name string
+		list toDoList
+	}{
+		{name: "populated list", list: createToDoListWithItems()},
+		{name: "nil list", list: createtoDoList()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := CreateAndStartStore(tt.list)
+			got := store.toDoList
+			if !reflect.DeepEqual(tt.list, got) {
+				t.Errorf("got %v, want %v", got, tt.list)
 			}
 		})
 	}
@@ -48,27 +68,41 @@ var knownID = uuid.New()
 
 func createToDoListWithItems() toDoList {
 	return toDoList{
-		knownID:    createToDoItem("banana", HighPriority),
-		uuid.New(): createToDoItem("triple", MediumPriority),
-		uuid.New(): createToDoItem("frog", LowPriority),
+		knownID:    createToDoItemPointer("banana", HighPriority),
+		uuid.New(): createToDoItemPointer("triple", MediumPriority),
+		uuid.New(): createToDoItemPointer("frog", LowPriority),
 	}
 }
 
-func compareResonses(res1, res2 response) bool {
-	if res1.err != res2.err {
-		fmt.Println("error fail")
-		return false
-	}
-	if res1.item != res2.item {
-		fmt.Println("item fail")
-		return false
-	}
-	if !reflect.DeepEqual(res1.list, res2.list) {
-		fmt.Println("list fail")
-		return false
-	}
-	return true
+func createToDoItemPointer(t string, p Priority) *toDoItem {
+	item := createToDoItem(t, p)
+	return &item
 }
+
+// func getFirstToDoItem(l toDoList) toDoItem {
+// 	var returnItem toDoItem
+// 	for _, item := range l {
+// 		returnItem = *item
+// 		break
+// 	}
+// 	return returnItem
+// }
+
+// func compareResonses(res1, res2 response) bool {
+// 	if res1.err != res2.err {
+// 		fmt.Println("error fail")
+// 		return false
+// 	}
+// 	if res1.item != res2.item {
+// 		fmt.Println("item fail")
+// 		return false
+// 	}
+// 	if !reflect.DeepEqual(res1.list, res2.list) {
+// 		fmt.Println("list fail")
+// 		return false
+// 	}
+// 	return true
+// }
 
 // func compareToDoLists(list1, list2 toDoList) bool {
 // 	for id, value := range list1 {

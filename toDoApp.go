@@ -11,8 +11,8 @@ func main() {
 	killChan := make(chan os.Signal, 1)
 	signal.Notify(killChan, os.Interrupt)
 
-	store.Start()
-	cli.Start(killChan)
+	store := store.CreateAndStartStore(nil)
+	cli.Start(killChan, &store)
 
 	<-killChan
 }

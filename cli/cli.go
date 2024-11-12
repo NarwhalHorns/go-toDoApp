@@ -41,7 +41,7 @@ func addPrompt() {
 
 	p := store.Priority(scanInputLine("Enter priority (High, Medium, Low) or enter for default (Medium): "))
 
-	store.AddItem(t, p)
+	store.AddItem(memStore, t, p)
 	println("Item added to list")
 }
 
@@ -51,16 +51,16 @@ func deletePrompt() {
 		fmt.Println(err)
 		return
 	}
-	err = store.DeleteItem(id)
+	err = store.DeleteItem(memStore, id)
 	if err != nil {
-		fmt.Println("Item deleted")
-	} else {
 		fmt.Println(err)
+	} else {
+		fmt.Println("Item deleted")
 	}
 }
 
 func listItems() {
-	items := store.GetAllItems()
+	items := store.GetAllItems(memStore)
 	allItemsString := store.ToDoListToString(items)
 	fmt.Println(allItemsString)
 }
@@ -71,22 +71,22 @@ func editPrompt() {
 		fmt.Println(err)
 		return
 	}
-	input := scanInputLine("Enter 't' to edit title, 'p' to edit priority or 'c' to toggle the compelte state.")
+	input := scanInputLine("Enter 't' to edit title, 'p' to edit priority or 'c' to toggle the complete state: ")
 	switch input {
 	case "c":
-		err = store.ToggleComplete(id)
+		err = store.ToggleComplete(memStore, id)
 		if err != nil {
 			fmt.Println(err)
 		}
 	case "t":
 		t := inputTitle()
-		err = store.EditTitle(id, t)
+		err = store.EditTitle(memStore, id, t)
 		if err != nil {
 			fmt.Println(err)
 		}
 	case "p":
 		p := scanInputLine("Enter priority: ")
-		err = store.EditPriority(id, store.Priority(p))
+		err = store.EditPriority(memStore, id, store.Priority(p))
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -120,7 +120,10 @@ func commandSwitch(input string, killChan chan os.Signal, loop *bool) {
 	}
 }
 
-func Start(killChan chan os.Signal) {
+var memStore *store.Store
+
+func Start(killChan chan os.Signal, store *store.Store) {
+	memStore = store
 	fmt.Println("------- ToDoApp --------")
 	go func() {
 		var loop = true

@@ -29,25 +29,27 @@ type toDoItem struct {
 	complete complete
 }
 
-func createToDoItem(t string, p Priority) *toDoItem {
-	itemPtr := &toDoItem{
+func createToDoItem(t string, p Priority) toDoItem {
+	return toDoItem{
 		title:    t,
 		priority: p,
 		complete: false,
 	}
-	return itemPtr
 }
 
-func (i *toDoItem) UpdateTitle(t string) {
+func (i *toDoItem) UpdateTitle(t string) response {
 	i.title = t
+	return response{}
 }
 
-func (i *toDoItem) UpdatePriority(p Priority) {
+func (i *toDoItem) UpdatePriority(p Priority) response {
 	i.priority = p
+	return response{}
 }
 
-func (i *toDoItem) ToggleComplete() {
+func (i *toDoItem) ToggleComplete() response {
 	i.complete = !i.complete
+	return response{}
 }
 
 func ToDoItemToString(id uuid.UUID, i toDoItem) string {
@@ -65,19 +67,12 @@ func createtoDoList() toDoList {
 	return make(toDoList)
 }
 
-func (l toDoList) AddItem(t string, p Priority) {
-	l[uuid.New()] = createToDoItem(t, p)
+func (l toDoList) AddItem(i toDoItem) response {
+	l[uuid.New()] = &i
+	return response{}
 }
 
-var ErrNoItem = errors.New("no item found")
-
 func (l toDoList) RemoveItem(id uuid.UUID) response {
-	_, ok := l[id]
-	if !ok {
-		return response{
-			err: ErrNoItem,
-		}
-	}
 	delete(l, id)
 	return response{}
 }
@@ -86,10 +81,6 @@ func (l toDoList) GetAllItems() response {
 	return response{
 		list: l,
 	}
-}
-
-func (l toDoList) DoesItemExist(id uuid.UUID) bool {
-	return l[id] != nil
 }
 
 func ToDoListToString(l toDoList) string {
@@ -124,49 +115,42 @@ type input struct {
 	title     string
 	priority  Priority
 	response  chan response
+	item      toDoItem
+	itemPtr   *toDoItem
 }
 
-var myToDoList = createtoDoList()
-var inputChan = make(chan input)
+type Store struct {
+	toDoList  toDoList
+	inputChan chan input
+}
 
-func Start() {
+func CreateStore(l toDoList) Store {
+	list := createtoDoList()
+	if l != nil {
+		list = l
+	}
+	return Store{
+		toDoList:  list,
+		inputChan: make(chan input),
+	}
+}
+
+func (s *Store) Start() {
 	go func() {
-		for input := range inputChan {
+		for input := range s.inputChan {
 			switch input.operation {
 			case addItem:
-				myToDoList.AddItem(input.title, input.priority)
-				input.response <- response{}
+				input.response <- s.toDoList.AddItem(input.item)
 			case deleteItem:
-				input.response <- myToDoList.RemoveItem(input.id)
+				input.response <- s.toDoList.RemoveItem(input.id)
 			case updatePriority:
-				if !myToDoList.DoesItemExist(input.id) {
-					input.response <- response{
-						err: errors.New("item does not exist to update"),
-					}
-					continue
-				}
-				myToDoList[input.id].UpdatePriority(input.priority)
-				input.response <- response{}
+				input.response <- input.itemPtr.UpdatePriority(input.priority)
 			case updateTitle:
-				if !myToDoList.DoesItemExist(input.id) {
-					input.response <- response{
-						err: errors.New("item does not exist to update"),
-					}
-					continue
-				}
-				myToDoList[input.id].UpdateTitle(input.title)
-				input.response <- response{}
+				input.response <- input.itemPtr.UpdateTitle(input.title)
 			case toggleComplete:
-				if !myToDoList.DoesItemExist(input.id) {
-					input.response <- response{
-						err: errors.New("item does not exist to update"),
-					}
-					continue
-				}
-				myToDoList[input.id].ToggleComplete()
-				input.response <- response{}
+				input.response <- input.itemPtr.ToggleComplete()
 			case listItems:
-				input.response <- myToDoList.GetAllItems()
+				input.response <- s.toDoList.GetAllItems()
 			case search:
 				// myToDoList.Search()
 			}
@@ -174,84 +158,99 @@ func Start() {
 	}()
 }
 
-func AddItem(title string, priority Priority) {
-	var input = input{
-		operation: addItem,
-		title:     title,
-		priority:  priority,
-	}
-	inputChan <- input
+func CreateAndStartStore(l toDoList) Store {
+	store := CreateStore(l)
+	store.Start()
+	return store
 }
 
-func GetAllItems() toDoList {
+func AddItem(s *Store, title string, priority Priority) {
+	item := createToDoItem(title, priority)
+	res := make(chan response)
+	var input = input{
+		operation: addItem,
+		item:      item,
+		response:  res,
+	}
+	s.inputChan <- input
+	<-res
+}
+
+func GetAllItems(s *Store) toDoList {
 	res := make(chan response)
 	var input = input{
 		operation: listItems,
 		response:  res,
 	}
-	inputChan <- input
+	s.inputChan <- input
 	response := <-res
 	return response.list
 }
 
-func DeleteItem(id uuid.UUID) error {
+var ErrNoItem = errors.New("no item found")
+
+func DeleteItem(s *Store, id uuid.UUID) error {
+	_, ok := s.toDoList[id]
+	if !ok {
+		return ErrNoItem
+	}
 	res := make(chan response)
 	var input = input{
 		operation: deleteItem,
 		id:        id,
 		response:  res,
 	}
-	inputChan <- input
-	response := <-res
-	if response.err != nil {
-		return response.err
-	}
+	s.inputChan <- input
+	<-res
 	return nil
 }
 
-func EditPriority(id uuid.UUID, priority Priority) error {
+func EditPriority(s *Store, id uuid.UUID, priority Priority) error {
+	item, ok := s.toDoList[id]
+	if !ok {
+		return ErrNoItem
+	}
 	res := make(chan response)
 	var input = input{
 		operation: updatePriority,
 		priority:  priority,
-		id:        id,
+		itemPtr:   item,
 		response:  res,
 	}
-	inputChan <- input
-	response := <-res
-	if response.err != nil {
-		return response.err
-	}
+	s.inputChan <- input
+	<-res
 	return nil
 }
 
-func EditTitle(id uuid.UUID, title string) error {
+func EditTitle(s *Store, id uuid.UUID, title string) error {
+	item, ok := s.toDoList[id]
+	if !ok {
+		return ErrNoItem
+	}
 	res := make(chan response)
 	var input = input{
 		operation: updateTitle,
-		id:        id,
+		itemPtr:   item,
 		title:     title,
 		response:  res,
 	}
-	inputChan <- input
-	response := <-res
-	if response.err != nil {
-		return response.err
-	}
+	s.inputChan <- input
+	<-res
 	return nil
 }
 
-func ToggleComplete(id uuid.UUID) error {
+func ToggleComplete(s *Store, id uuid.UUID) error {
+	item, ok := s.toDoList[id]
+	if !ok {
+		return ErrNoItem
+	}
 	res := make(chan response)
 	var input = input{
 		operation: toggleComplete,
-		id:        id,
+		itemPtr:   item,
 		response:  res,
 	}
-	inputChan <- input
-	response := <-res
-	if response.err != nil {
-		return response.err
-	}
+	s.inputChan <- input
+	<-res
 	return nil
 }
