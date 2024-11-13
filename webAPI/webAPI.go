@@ -31,11 +31,7 @@ func displayPage(w http.ResponseWriter) {
 		displayItems = append(displayItems, displayItem{Id: id.String(), Title: t, Priority: p, Complete: c})
 	}
 
-	tmpl, err := template.New("toDoList.go.tmpl").ParseFiles("webAPI/toDoList.go.tmpl")
-	if err != nil {
-		panic(err)
-	}
-	err = tmpl.Execute(w, displayItems)
+	err := tmpl.Execute(w, displayItems)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 	}
@@ -73,26 +69,108 @@ func delete(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), 400)
 		return
 	}
-	store.DeleteItem(memStore, id)
+	err = store.DeleteItem(memStore, id)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	displayPage(w)
+}
+
+func updateTitle(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, "nope", 404)
+		return
+	}
+	err := req.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	var id uuid.UUID
+	id, err = uuid.Parse(req.FormValue("id"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	title := req.FormValue("title")
+
+	err = store.EditTitle(memStore, id, title)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	displayPage(w)
+}
+
+func updatePriority(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, "nope", 404)
+		return
+	}
+	err := req.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	var id uuid.UUID
+	id, err = uuid.Parse(req.FormValue("id"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+	priority := req.FormValue("priority")
+
+	err = store.EditPriority(memStore, id, store.Priority(priority))
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	displayPage(w)
+}
+
+func updateComplete(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, "nope", 404)
+		return
+	}
+	err := req.ParseForm()
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
+	var id uuid.UUID
+	id, err = uuid.Parse(req.FormValue("id"))
+	if err != nil {
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	err = store.ToggleComplete(memStore, id)
+	if err != nil {
+		http.Error(w, err.Error(), 500)
+		return
+	}
 	displayPage(w)
 }
 
 var memStore *store.Store
-var tmplFile = "webAPI/toDoList.go.tmpl"
 var tmpl *template.Template
 
 func Start(s *store.Store) {
 	memStore = s
 
-	// var err error
-	// tmpl, err = template.New(tmplFile).ParseFiles(tmplFile)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	var err error
+	tmpl, err = template.New("toDoList.go.tmpl").ParseFiles("webAPI/toDoList.go.tmpl")
+	if err != nil {
+		panic(err)
+	}
 
 	http.HandleFunc("/", mainPage)
 	http.HandleFunc("/create", create)
-	// http.HandleFunc("/update", update)
+	http.HandleFunc("/update/title", updateTitle)
+	http.HandleFunc("/update/priority", updatePriority)
+	http.HandleFunc("/update/complete", updateComplete)
 	http.HandleFunc("/delete", delete)
 	go http.ListenAndServe(":8080", nil)
 }

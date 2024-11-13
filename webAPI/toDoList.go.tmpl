@@ -9,9 +9,9 @@
     {{ range . }}
         <form action="/delete" method="post">
             <input type="hidden" id="id" name="id" value="{{ .Id }}">
-            <label id="title">Title</label><input type="text" id="title" value="{{ .Title }}"><input type="submit" value="Edit Title"><br>
-            <label id="priority">Priority</label><input type="text" id="priority" value="{{ .Priority }}"><input type="submit" value="Edit Priority"><br>
-            <label id="complete">Complete</label><input type="checkbox" id="complete" value="{{ .Complete }}" onclick="return false;"><input type="submit" value="Toggle Complete"><br>
+            <label id="title">Title</label><input type="text" id="title" name="title" value="{{ .Title }}"><input type="submit" value="Edit Title" formaction="/update/title"><br>
+            <label id="priority">Priority</label><input type="text" id="priority" name="priority" value="{{ .Priority }}"><input type="submit" value="Edit Priority" formaction="/update/priority"><br>
+            <label id="complete">Complete</label><input type="checkbox" id="complete" name="complete" {{ if .Complete }} checked {{ end }} onclick="return false;"><input type="submit" value="Toggle Complete" formaction="/update/complete"><br>
             <input type="submit" value="Delete Item">
         </form>
     {{ end }}
