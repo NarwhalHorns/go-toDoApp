@@ -12,7 +12,7 @@ func main() {
 	killChan := make(chan os.Signal, 1)
 	signal.Notify(killChan, os.Interrupt)
 
-	store := store.CreateAndStartStore(nil)
+	store := store.CreateAndStartStore(nil, "toDoList.json")
 	cli.Start(killChan, &store)
 	webAPI.Start(&store)
 
