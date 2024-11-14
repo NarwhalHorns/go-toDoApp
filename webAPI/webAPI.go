@@ -8,13 +8,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type displayItem struct {
-	Id       string
-	Title    string
-	Priority string
-	Complete bool
-}
-
 func mainPage(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		http.Error(w, "nope", 404)
@@ -25,13 +18,7 @@ func mainPage(w http.ResponseWriter, req *http.Request) {
 
 func displayPage(w http.ResponseWriter) {
 	items := store.GetAllItems(memStore)
-	var displayItems []displayItem
-	for id, item := range items {
-		t, p, c := item.GetValues()
-		displayItems = append(displayItems, displayItem{Id: id.String(), Title: t, Priority: p, Complete: c})
-	}
-
-	err := tmpl.Execute(w, displayItems)
+	err := tmpl.Execute(w, items)
 	if err != nil {
 		http.Error(w, err.Error(), 500)
 	}
