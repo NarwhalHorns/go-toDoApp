@@ -10,7 +10,7 @@ import (
 )
 
 func BenchmarkAddItemEmptyStore(b *testing.B) {
-	store := CreateAndStartStore(nil)
+	store := CreateAndStartStore(nil, "")
 	var wg sync.WaitGroup
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -25,7 +25,7 @@ func BenchmarkAddItemEmptyStore(b *testing.B) {
 
 func BenchmarkAddItemPopulatedStore(b *testing.B) {
 	startList := createToDoListWithItems(b.N, uuid.New())
-	store := CreateAndStartStore(startList)
+	store := CreateAndStartStore(startList, "")
 	var wg sync.WaitGroup
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -40,7 +40,7 @@ func BenchmarkAddItemPopulatedStore(b *testing.B) {
 
 func BenchmarkEditItem(b *testing.B) {
 	startList := createToDoListWithItems(b.N, uuid.New())
-	store := CreateAndStartStore(startList)
+	store := CreateAndStartStore(startList, "")
 	idChan := make(chan uuid.UUID, b.N)
 	for id := range store.toDoList {
 		idChan <- id
@@ -79,7 +79,7 @@ func TestDeleteItem(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := CreateAndStartStore(tt.list)
+			store := CreateAndStartStore(tt.list, "")
 			got := DeleteItem(&store, tt.id)
 			if tt.want != got {
 				t.Errorf("got %v, want %v", got, tt.want)
@@ -102,7 +102,7 @@ func TestCreateStorePopulatesList(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store := CreateAndStartStore(tt.list)
+			store := CreateAndStartStore(tt.list, "")
 			got := store.toDoList
 			if !reflect.DeepEqual(tt.list, got) {
 				t.Errorf("got %v, want %v", got, tt.list)

@@ -1,10 +1,14 @@
 package store
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 
 	"github.com/google/uuid"
 )
+
+const filepathPrefix = "store/perm/"
 
 type Priority string
 
@@ -24,45 +28,45 @@ func (c complete) String() string {
 }
 
 type toDoItem struct {
-	title    string
-	priority Priority
-	complete complete
+	Title    string
+	Priority Priority
+	Complete complete
 }
 
 func createToDoItem(t string, p Priority) toDoItem {
 	return toDoItem{
-		title:    t,
-		priority: p,
-		complete: false,
+		Title:    t,
+		Priority: p,
+		Complete: false,
 	}
 }
 
 func (i *toDoItem) UpdateTitle(t string) response {
-	i.title = t
+	i.Title = t
 	return response{}
 }
 
 func (i *toDoItem) UpdatePriority(p Priority) response {
-	i.priority = p
+	i.Priority = p
 	return response{}
 }
 
 func (i *toDoItem) ToggleComplete() response {
-	i.complete = !i.complete
+	i.Complete = !i.Complete
 	return response{}
 }
 
 func ToDoItemToString(id uuid.UUID, i toDoItem) string {
 	var fullString string
 	fullString = "id: " + id.String() + "\n"
-	fullString += "\ttitle: " + i.title + "\n"
-	fullString += "\tpriority: " + string(i.priority) + "\n"
-	fullString += "\tcomplete: " + i.complete.String() + "\n"
+	fullString += "\ttitle: " + i.Title + "\n"
+	fullString += "\tpriority: " + string(i.Priority) + "\n"
+	fullString += "\tcomplete: " + i.Complete.String() + "\n"
 	return fullString
 }
 
 func (i toDoItem) GetValues() (string, string, bool) {
-	return i.title, string(i.priority), bool(i.complete)
+	return i.Title, string(i.Priority), bool(i.Complete)
 }
 
 type toDoList map[uuid.UUID]*toDoItem
@@ -93,6 +97,19 @@ func ToDoListToString(l toDoList) string {
 		fullString += ToDoItemToString(id, *item)
 	}
 	return fullString
+}
+
+func readListFromFile(filepath string) (toDoList, error) {
+	jsonData, err := os.ReadFile(filepathPrefix + filepath)
+	if err != nil {
+		return createtoDoList(), err
+	}
+	var list toDoList
+	err = json.Unmarshal(jsonData, &list)
+	if err != nil {
+		return createtoDoList(), err
+	}
+	return list, nil
 }
 
 type operation int
@@ -126,16 +143,23 @@ type input struct {
 type Store struct {
 	toDoList  toDoList
 	inputChan chan input
+	filepath  string
 }
 
-func CreateStore(l toDoList) Store {
-	list := createtoDoList()
-	if l != nil {
-		list = l
+func CreateStore(l toDoList, filepath string) Store {
+	list, err := readListFromFile(filepath)
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			panic(err)
+		}
+	}
+	for id, item := range l {
+		list[id] = item
 	}
 	return Store{
 		toDoList:  list,
 		inputChan: make(chan input),
+		filepath:  filepath,
 	}
 }
 
@@ -162,8 +186,24 @@ func (s *Store) Start() {
 	}()
 }
 
-func CreateAndStartStore(l toDoList) Store {
-	store := CreateStore(l)
+func (s *Store) WriteToJson() error {
+	jsonData, err := json.Marshal(s.toDoList)
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(filepathPrefix + s.filepath)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(jsonData)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func CreateAndStartStore(l toDoList, filepath string) Store {
+	store := CreateStore(l, filepath)
 	store.Start()
 	return store
 }
