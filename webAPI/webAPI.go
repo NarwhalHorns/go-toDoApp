@@ -10,24 +10,24 @@ import (
 
 func mainPage(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
-		http.Error(w, "nope", 404)
+		http.Error(w, "nope", http.StatusMethodNotAllowed)
 		return
 	}
 	items := store.GetAllItems(memStore)
 	err := tmpl.Execute(w, items)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func create(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		http.Error(w, "nope", 404)
+		http.Error(w, "nope", http.StatusMethodNotAllowed)
 		return
 	}
 	err := req.ParseForm()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -37,24 +37,24 @@ func create(w http.ResponseWriter, req *http.Request) {
 
 func delete(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		http.Error(w, "nope", 404)
+		http.Error(w, "nope", http.StatusMethodNotAllowed)
 		return
 	}
 	err := req.ParseForm()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	var id uuid.UUID
 	id, err = uuid.Parse(req.FormValue("id"))
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	err = store.DeleteItem(memStore, id)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, req, "/", http.StatusSeeOther)
@@ -62,25 +62,25 @@ func delete(w http.ResponseWriter, req *http.Request) {
 
 func updateTitle(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		http.Error(w, "nope", 404)
+		http.Error(w, "nope", http.StatusMethodNotAllowed)
 		return
 	}
 	err := req.ParseForm()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	var id uuid.UUID
 	id, err = uuid.Parse(req.FormValue("id"))
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	title := req.FormValue("title")
 
 	err = store.EditTitle(memStore, id, title)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, req, "/", http.StatusSeeOther)
@@ -88,25 +88,25 @@ func updateTitle(w http.ResponseWriter, req *http.Request) {
 
 func updatePriority(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		http.Error(w, "nope", 404)
+		http.Error(w, "nope", http.StatusMethodNotAllowed)
 		return
 	}
 	err := req.ParseForm()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	var id uuid.UUID
 	id, err = uuid.Parse(req.FormValue("id"))
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	priority := req.FormValue("priority")
 
 	err = store.EditPriority(memStore, id, store.Priority(priority))
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, req, "/", http.StatusSeeOther)
@@ -114,24 +114,24 @@ func updatePriority(w http.ResponseWriter, req *http.Request) {
 
 func updateComplete(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		http.Error(w, "nope", 404)
+		http.Error(w, "nope", http.StatusMethodNotAllowed)
 		return
 	}
 	err := req.ParseForm()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	var id uuid.UUID
 	id, err = uuid.Parse(req.FormValue("id"))
 	if err != nil {
-		http.Error(w, err.Error(), 400)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	err = store.ToggleComplete(memStore, id)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, req, "/", http.StatusSeeOther)
