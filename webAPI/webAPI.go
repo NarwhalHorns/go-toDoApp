@@ -11,12 +11,8 @@ import (
 func mainPage(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		http.Error(w, "nope", 404)
-	} else {
-		displayPage(w)
+		return
 	}
-}
-
-func displayPage(w http.ResponseWriter) {
 	items := store.GetAllItems(memStore)
 	err := tmpl.Execute(w, items)
 	if err != nil {
@@ -36,7 +32,7 @@ func create(w http.ResponseWriter, req *http.Request) {
 	}
 
 	store.AddItem(memStore, req.PostFormValue("title"), store.Priority(req.PostFormValue("priority")))
-	displayPage(w)
+	http.Redirect(w, req, "/", http.StatusSeeOther)
 }
 
 func delete(w http.ResponseWriter, req *http.Request) {
@@ -61,7 +57,7 @@ func delete(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	displayPage(w)
+	http.Redirect(w, req, "/", http.StatusSeeOther)
 }
 
 func updateTitle(w http.ResponseWriter, req *http.Request) {
@@ -87,7 +83,7 @@ func updateTitle(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	displayPage(w)
+	http.Redirect(w, req, "/", http.StatusSeeOther)
 }
 
 func updatePriority(w http.ResponseWriter, req *http.Request) {
@@ -113,7 +109,7 @@ func updatePriority(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	displayPage(w)
+	http.Redirect(w, req, "/", http.StatusSeeOther)
 }
 
 func updateComplete(w http.ResponseWriter, req *http.Request) {
@@ -138,7 +134,7 @@ func updateComplete(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), 500)
 		return
 	}
-	displayPage(w)
+	http.Redirect(w, req, "/", http.StatusSeeOther)
 }
 
 var memStore *store.Store
