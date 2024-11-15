@@ -187,7 +187,7 @@ func (s *Store) Start() {
 }
 
 func (s *Store) WriteToJson() error {
-	jsonData, err := json.Marshal(s.toDoList)
+	jsonData, err := json.MarshalIndent(s.toDoList, "", "  ")
 	if err != nil {
 		return err
 	}
