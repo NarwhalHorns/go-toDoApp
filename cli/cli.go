@@ -23,10 +23,6 @@ func displayHelp() {
 
 func exitCLI(killChan chan os.Signal) {
 	fmt.Println("Quitting...")
-	err := memStore.WriteToJson()
-	if err != nil {
-		fmt.Println("failed to write list to json. error: ", err)
-	}
 	killChan <- os.Interrupt
 }
 
